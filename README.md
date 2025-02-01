@@ -1,188 +1,211 @@
-# allegro_hand_ros
+# Allegro Hand ROS
 
-Allegro Hand ROS
-================================
+This repo contains official ROS package for Allegro Hand, as well as python bindings to control Allegro Hand via ROS 1.
 
-This is the official release to control Allegro Hand with ROS Kinetic.
-Mostly, it is based on the old release of Allegro Hand ros package and the interfaces 
-and controllers have been improved and rewritten much by Felix Duballet from EPFL. 
-Thank you for the contribution.
+You can find our refered repos below:
 
-You can find old release of the [hand ros package][1].
-[1]: https://github.com/simlabrobotics/allegro_hand_ros_v4
+- [GitHub: simlabrobotics/allegro_hand_ros_v4](https://github.com/simlabrobotics/allegro_hand_ros_v4)
 
-It improves significantly upon the old release, simplifies the launch file structure,
-updates the package/node names to
-have a more consistent structure, improves the build process by creating a
-common driver, introduces an AllegroNode C++ class that reduces the amount of
-duplicated code. It also provides a python library that can control the hand
-directly.
+- [GitHub: felixduvallet/allegro-hand-ros](https://github.com/felixduvallet/allegro-hand-ros)
 
-It also provides the BHand library directly in this package (including both
-32-bit and 64-bit versions, though 32-bit systems will need to update the
-symlink manually).
+Also, the links below are useful:
 
-At this point no effort has been made to be backwards compatible. Some of the
-non-compatible changes between the two version are:
+- [Allegro Hand wiki](http://www.simlab.co.kr/AllegroHand/wiki)
 
- - Put all of the controllers into one *package* (allegro_hand_controllers) and
-   made each controller a different node (allegro_node_XXXX): grasp, pd, velsat,
-   and sim.
- - Single launch file with arguments instead of multiple launch files with
-   repeated code.
- - Both the parameter and description files are now ROS packages, so that
-   `rospack find` works with them.
- - These packages will likely not work with pre-hydro versions (only tested on
-   ROS Kinetic so far, please let me know if this works on other distributions).
- - Added a torque controller (from @nisommer).
- - Added a 'simulated' pass-through hand controller that sets the joint state to
-   the desired joint state.
+- [ROS wiki for original package](https://wiki.ros.org/allegro_hand_ros)
 
-Launch file instructions:
-------------------------
+## Installation
 
-There is now a single file,
-[allegro_hand.launch](allegro_hand_controllers/launch/allegro_hand.launch)
-that starts the hand. It takes many arguments, but at a minimum you must specify
-the handedness:
+This installation process is refered to:
 
-    roslaunch allegro_hand_controllers allegro_hand.launch HAND:=right
+- [GitHub: felixduvallet/allegro-hand-ros](https://github.com/felixduvallet/allegro-hand-ros)
 
-Optional (recommended) arguments:
+- [AH V4 ROS Project | Allegro Hand](https://www.allegrohand.com/ah-v4-ros-project)
 
-          NUM:=0|1|...
-          ZEROS:=/path/to/zeros_file.yaml
-          CONTROLLER:=grasp|pd|velsat|torque|sim
-          RESPAWN:=true|false   Respawn controller if it dies.
-          KEYBOARD:=true|false  (default is true)
-          AUTO_CAN:=true|false  (default is true)
-          CAN_DEVICE:=/dev/pcanusb1 | /dev/pcanusbNNN  (ls -l /dev/pcan* to see open CAN devices)
-          VISUALIZE:=true|false  (Launch rviz)
-          JSP_GUI:=true|false  (show the joint_state_publisher for *desired* joint angles)
+Currently, only **ROS 1** is supported (controlling via ROS 2 will be supported as soon as possible). The steps below are verified on Ubuntu 20.04 with ROS noetic installed, and may also useable for other Linux distros.
 
-Note on `AUTO_CAN`: There is a nice script `detect_pcan.py` which automatically
-finds an open `/dev/pcanusb` file. If instead you specify the can device
-manually (`CAN_DEVICE:=/dev/pcanusbN`), make sure you *also* specify
-`AUTO_CAN:=false`. Obviously, automatic detection cannot work with two hands.
+If you are using conda environment, you are recommened to stay in current environment when installing.
 
-The second launch file is for visualization, it is included in
-`allegro_hand.launch` if `VISUALIZE:=true`. Otherwise, it can be useful to run
-it separately (with `VISUALIZE:=false`), for example if you want to start rviz separately
-(and keep it running):
+1. Install PCAN driver:
 
-    roslaunch allegro_hand_controllers allegro_viz.launch HAND:=right
+    - Install neccessary packages:
 
-Note that you should also specify the hand `NUM` parameter in the viz launch if
-the hand number is not zero.
+        ```shell
+        sudo apt-get instal libpopt-dev ros-<$ROS_DISTRO>-libpcan
+        ```
 
-Packages
---------
+    - Install PCAN driver from [PCAN-Basic for Linux](https://www.peak-system.com/fileadmin/media/linux/can-pcan-basic.php), the latest version (currently version=4.9.0.7) is okay:
 
- * **allegro_hand** A python client that enables direct control of the hand in
-                    python code.
- * **allegro_hand_driver** Driver for talking with the allegro hand.
- * **allegro_hand_controllers** Different nodes that actually control the hand.
- The AllegroNode class handles all the generic driver comms, each class then
- implements `computeDesiredTorque` differently (and can have various topic
- subscribers):
-   * grasp: Apply various pre-defined grasps, including gravity compensation.
-   * pd: Joint space control: save and hold positions.
-   * velsat: velocity saturation joint space control (supposedly experimental)
-   * torque: Direct torque control.
-   * sim: Just pass desired joint states through as current joint states.
- * **allegro_hand_description** xacro descriptions for the kinematics of the
-     hand, rviz configuration and meshes.
- * **allegro_hand_keyboard** Node that sends the commanded grasps. All commands
-     are available with the grasp controller, only some are available with the
-     other controllers.
- * **allegro_hand_parameters** All necessary parameters for loading the hand:
-   * gains_pd.yaml: Controller gains for PD controller.
-   * gains_velSat.yaml: Controller gains and parameters for velocity saturation
-           controller.
-   * initial_position.yaml: Home position for the hand.
-   * zero.yaml: Offset and servo directions for each of the 16 joints, and some
-           meta information about the hand.
-   * zero_files/ Zero files for all hands.
- * **bhand** Library files for the predefined grasps, available in 32 and 64 bit
-     versions. 64 bit by default, update symlink for 32 bit.
+        ```shell
+        tar xzvf PCAN-Basic_Linux-<version>
+        cd PCAN-Basic_Linux-<version>/libpcanbasic/
+        make clean
+        make NET=NO_NETDEV_SUPPORT
+        sudo make install
+        sudo /sbin/modprobe pcan
+        ```
 
-Note on polling (from Wonik Robotics): The preferred sampling method is utilizing the
-Hand's own real time clock running @ 333Hz by polling the CAN communication
-(polling = true, default). In fact, ROS's interrupt/sleep combination might
-cause instability in CAN communication resulting unstable hand motions.
+        which will build and install `libpcanbasic.so` and `pcaninfo` for CAN connection.
 
+    - You can test installation using:
 
-Useful Links
-------------
+        ```shell
+        cat /proc/pcan
+        ```
 
- * [Allegro Hand wiki](http://wiki.wonikrobotics/AllegroHand/wiki).
- * [ROS wiki for original package](http://www.ros.org/wiki/allegro_hand_ros).
+        If success, it will print information like:
 
+        ```txt
+        *------------- PEAK-System CAN interfaces (www.peak-system.com) -------------
+        *------------- Release_20240521_n (8.18.0) Jan 15 2025 09:15:43 --------------
+        *---------------------- [mod] [isa] [pci] [pec] [usb] -----------------------
+        *--------------------- 1 interfaces @ major 506 found -----------------------
+        *n -type- -ndev- --base-- irq --btr- --read-- --write- --irqs-- -errors- status
+        32    usb   -NA- ffffffff 000 0x0014 00504d47 00504d3e 003c4616 00000012 0x0000
+        ```
 
-Controlling More Than One Hand
-------------------------------
+        else will print:
 
-When running more than one hand using ROS, you must specify the number of the
-hand when launching.
+        ```txt
+        cat: /proc/pcan: No such file or directory
+        ```
 
-    roslaunch allegro_hand.launch HAND:=right ZEROS:=parameters/zero0.yaml NUM:=0 CAN_DEVICE:=/dev/pcan0 AUTO_CAN:=false
+    - As the Allegro Hand is connected, you should see pcanusb0 or pcanusb1 in the list of available interfaces:
 
-    roslaunch allegro_hand.launch HAND:=left  ZEROS:=parameters/zero1.yaml NUM:=1 CAN_DEVICE:=/dev/pcan1 AUTO_CAN:=false
+        ```shell
+        ls -l /dev/pcan*
+        ```
 
+        it will list like:
 
-Known Issues:
--------------
+        ```txt
+        lrwxrwxrwx 1 root root       9 Jan 16 02:07 /dev/pcan32 -> pcanusb32
+        crw-rw-rw- 1 root root 506, 32 Jan 16 02:07 /dev/pcanusb32
 
-While all parameters defining the hand's motor/encoder directions and offsets
-fall under the enumerated "allegroHand_#" namespaces, the parameter
-"robot_description" defining the kinematic structure and joint limits remains
-global. When launching a second hand, this parameter is overwritten. I have yet
-to find a way to have a separate enumerated "robot_decription" parameter for
-each hand. If you have any info on this, please advise.
+        /dev/pcan-usb:
+        total 0
+        drwxr-xr-x 2 root root 60 Jan 16 02:07 0
+      ```
 
+    - If you do not see any available files, you may need to run:
 
-Installing the PCAN driver
---------------------------
+        ```shell
+        sudo ./driver/pcan_make_devices 2
+        ```
 
-Before using the hand, you must install the pcan drivers. This assumes you have
-a peak-systems pcan to usb adapter.
+      from the downloaded pcan folder: this theoretically creates the devices files if the system has not done it automatically.
 
-1. Install these packages
+1. Build libBHand
 
-    sudo apt-get install libpopt-dev ros-kinetic-libpcan
+    - As libBHand is a pre-built library, we offer bhand in `./bhand`
+    - Also, you can download libBHand from [AH V4 Grasping Library for Linux | Allegro Hand](https://www.allegrohand.com/ah-v4-grasping-library-for-linux). You should select corresponding version of hand (Take Allegro Hand V4 as example, you should download from `./"Allegro Hand V4 | File"/libBHand_64.zip`).
 
-2. Download latest drivers: http://www.peak-system.com/fileadmin/media/linux/index.htm#download
+    - Install libBHand follwing the commands below:
 
-Install the drivers:
+      ```shell
+      unzip LibBHand_64.zip
+      cd libBHand_64
+      sudo make install
+      sudo ldconfig
+      ```
 
-    make clean; make NET=NO_NETDEV_SUPPORT
-    sudo make install
-    sudo /sbin/modprobe pcan
+1. Build ROS packages
 
-Test that the interface is installed properly with:
+    - If you're using conda environment, you may need to install several additional python packages such as `rospy`.
 
-     cat /proc/pcan
+    - Before building, you should change the symlink of `./CMakeLists.txt`:
 
-You should see some stuff streaming.
+      ```shell
+      ln -sf ${ROS_ROOT}/../catkin/cmake/toplevel.cmake CMakeLists.txt
+      ```
 
-When the hand is connected, you should see pcanusb0 or pcanusb1 in the list of
-available interfaces:
+    - Build packages:
 
-    ls -l /dev/pcan*
+      ```shell
+      cd allegro_hand_ros
+      catkin build
+      ```
 
-If you do not see any available files, you may need to run:
+      You are recommended to remove directories including `./build` and `./devel` to force building from scratch.
 
-    sudo ./driver/pcan_make_devices 2
+    - Once installed, you can simply lauch rviz using the follwing command:
 
-from the downloaded pcan folder: this theoretically creates the devices files if
-the system has not done it automatically.
+      ```shell
+      source /devel/setup.bash
+      roslaunch allegro_hand allegro_hand.launch HAND:=right
+      ```
 
-3. Build the sources
+1. Install python package (optional)
 
-    catkin_make
-    source devel/setup.bash
+    - **Note**: The python packages is based on previously built ROS packages, which is used for advanced control using python scripts. If ROS is already enough for controlling, there is no need for install this package.
 
-4. quick start
-    cd src/allegro_hand_controllers/launch
-    roslaunch allegro_hand.launch HAND:=right
+    - Install package:
 
+      ```shell
+      cd allegro_hand_ros/src/allegro_hand
+      python seup.py install -e
+      ```
+
+      Make sure the environment you are installing is identical to previous environment. You can check whether the package is successfully installed:
+
+      ```shell
+      python
+      >>> import allegro_hand
+      >>> allegro_hand.__file__
+      # will echo
+      # 'path/to/allegro_hand_ros/src/allegro_hand/scripts/allegro_hand/__init__.py'
+      ```
+
+      If no error message is echoed, then you have finished a success installation.
+
+## Included Packages
+
+1. **allegro_hand**: A python client that enables direct control of the hand in python code, and all generic launch files.
+
+1. **allegro_hand_driver**: Driver for talking with the allegro hand.
+
+1. **allegro_hand_controllers**: Different nodes that actually control the hand. The AllegroNode class handles all the generic driver comms, each class then implements computeDesiredTorque differently (and can have various topic subscribers):
+
+    - **grasp**: Apply various pre-defined grasps, including gravity compensation.
+
+    - **pd**: Joint space control: save and hold positions.
+
+    - **velsat**: velocity saturation joint space control (supposedly experimental)
+
+    - **torque**: Direct torque control.
+
+    - **sim**: Just pass desired joint states through as current joint states.
+
+1. **allegro_hand_description**: Xacro descriptions for the kinematics of the hand, rviz configuration and meshes.
+
+1. **allegro_hand_keyboard**: Node that sends the commanded grasps. All commands are available with the grasp controller, only some are available with the other controllers.
+
+1. **allegro_hand_parameters**: All necessary parameters for loading the hand:
+
+    - **gains_pd.yaml**: Controller gains for PD controller.
+
+    - **gains_velSat.yaml**: Controller gains and parameters for velocity saturation controller.
+
+    - **initial_position.yaml**: Home position for the hand.
+
+    - **zero.yaml**: Offset and servo directions for each of the 16 joints, and some meta information about the hand.
+
+    - **zero_files**: Zero files for all hands.
+
+1. **bhand**: Library files for the predefined grasps, available in 32 and 64 bit versions. 64 bit by default, update symlink for 32 bit.
+Note on polling (from SimLabs): The preferred sampling method is utilizing the Hand's own real time clock running @ 333Hz by polling the CAN communication (polling = true, default). In fact, ROS's interrupt/sleep combination might cause instability in CAN communication resulting unstable hand motions.
+
+## Usage
+
+A simple way to start Allegro Hand is using:
+
+```shell
+source /path/to/allegro_hand_ros/devel/setup.bash
+roslaunch allegro_hand_controllers allegro_hand.launch HAND:=right
+```
+
+Also, you can set `HAND:=left` to control left hand.
+
+Bafore executing, you should make sure PCAN-USB is connected and Allegro hand is powered on.
+
+You should see an Allegro Hand in rviz, whose pose is identical to the real Allegro Hand. In addition, you can control the hand using keyboard follwing the showing instructions.
